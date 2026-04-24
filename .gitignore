@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.env
+*.wav
+*.csv
+test_out.txt
+test2.py
+test3.py
+test_pipeline.py
+test_import.py
