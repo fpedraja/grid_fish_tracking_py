@@ -6,13 +6,14 @@ Detects and tracks weakly electric fish (EOD signals) from multi-channel WAV rec
 
 ## Features
 
+- Optional 50/60 Hz comb notch filter to remove powerline interference before bandpass
 - Bandpass filter (300–2000 Hz) + Hilbert envelope peak detection
 - Gaussian spatial grid localization from 8 hydrophone channels
 - DBSCAN spatial clustering of EOD events per file
 - Kalman filter tracker with Hungarian assignment across files
 - PyQt5 GUI with:
   - 2-D tank track map (fish trajectories)
-  - 1-second bandpass signal viewer with color-coded EOD markers
+  - 1-second bandpass signal viewer with color-coded EOD markers and manual Y-scale lock
   - PCA cluster identity scatter plot (amplitude fingerprints)
   - Live log and results table
   - CSV export
@@ -75,6 +76,9 @@ python main.py
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| `notch_enabled` | off | Enable 50/60 Hz comb notch filter (removes powerline harmonics) |
+| `notch_hz` | 50 Hz | Powerline fundamental frequency (50 Hz in Uruguay/Europe, 60 Hz in Americas) |
+| `notch_Q` | 30 | Notch quality factor — higher = narrower notch per harmonic |
 | `bp_low / bp_high` | 300 / 2000 Hz | Bandpass filter range |
 | `min_pk_height` | 0.015 | Envelope amplitude threshold for EOD detection |
 | `min_events_for_fish` | 600 | Minimum EOD events per file before clustering |
@@ -84,6 +88,13 @@ python main.py
 | `hard_gate_pos` | 60 cm | Kalman tracker max position jump between files |
 | `hard_gate_f` | 2 Hz | Kalman tracker max frequency jump between files |
 | `max_miss` | 10 | Files a track can coast without a detection |
+
+### Notch filter
+
+If you see 50/60 Hz powerline interference in the signal viewer, enable the **Notch Filter** in the Parameters panel.
+The comb notch removes the fundamental frequency and all its harmonics in one pass before the bandpass filter is applied.
+Set `notch_hz` to match your local grid frequency (50 Hz in Uruguay/Europe, 60 Hz in most of the Americas).
+Increase `notch_Q` for a narrower notch if you are concerned about attenuating nearby EOD frequencies.
 
 ### Tuning tips
 
