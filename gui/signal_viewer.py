@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pyqtgraph as pg
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
+                              QLabel, QCheckBox, QDoubleSpinBox)
 from PyQt5.QtCore import Qt
 
 _CH_COLORS = [
@@ -79,6 +80,32 @@ class SignalViewer(QWidget):
         self._file_label.setStyleSheet("color:#abb2bf; font-style:italic; font-size:8pt;")
         root.addWidget(self._file_label)
 
+        # ---- Manual Y-scale controls ----
+        scale_row = QHBoxLayout()
+        scale_row.setSpacing(4)
+        self._lock_scale = QCheckBox("Lock Y scale")
+        self._lock_scale.setStyleSheet("color:#abb2bf; font-size:8pt;")
+        self._ymin_spin = QDoubleSpinBox()
+        self._ymax_spin = QDoubleSpinBox()
+        for sp in (self._ymin_spin, self._ymax_spin):
+            sp.setRange(-100.0, 100.0)
+            sp.setSingleStep(0.001)
+            sp.setDecimals(4)
+            sp.setFixedWidth(90)
+        self._ymin_spin.setValue(-0.05)
+        self._ymax_spin.setValue(0.05)
+        scale_row.addWidget(self._lock_scale)
+        scale_row.addWidget(QLabel("Min:"))
+        scale_row.addWidget(self._ymin_spin)
+        scale_row.addWidget(QLabel("Max:"))
+        scale_row.addWidget(self._ymax_spin)
+        scale_row.addStretch()
+        root.addLayout(scale_row)
+
+        self._lock_scale.stateChanged.connect(self._apply_yscale)
+        self._ymin_spin.valueChanged.connect(self._apply_yscale)
+        self._ymax_spin.valueChanged.connect(self._apply_yscale)
+
         self._glw = pg.GraphicsLayoutWidget()
         self._glw.setBackground("#0d0d2a")
         self._glw.ci.setSpacing(1)
@@ -121,6 +148,19 @@ class SignalViewer(QWidget):
     # Rendering
     # ------------------------------------------------------------------
 
+    def _apply_yscale(self) -> None:
+        """Apply or release the manual Y scale on all plots."""
+        if self._lock_scale.isChecked():
+            ymin = self._ymin_spin.value()
+            ymax = self._ymax_spin.value()
+            if ymax <= ymin:
+                return
+            for p in self._plots:
+                p.setYRange(ymin, ymax, padding=0)
+        else:
+            for p in self._plots:
+                p.enableAutoRange(axis='y')
+
     def _render(self) -> None:
         if self._data is None:
             return
@@ -133,6 +173,8 @@ class SignalViewer(QWidget):
         for ch in range(n_ch):
             self._curves[ch].setData(x=t_arr, y=self._data[:, ch])
             self._plots[ch].setXRange(t_arr[0], t_arr[-1], padding=0.02)
+
+        self._apply_yscale()
 
         # Remove old event scatter items
         for ch in range(n_ch):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QFormLayout,
-    QDoubleSpinBox, QSpinBox, QScrollArea, QLabel,
+    QDoubleSpinBox, QSpinBox, QScrollArea, QLabel, QCheckBox,
 )
 from PyQt5.QtCore import Qt
 
@@ -47,6 +47,17 @@ class ParamsPanel(QScrollArea):
         # ---- Signal processing ----
         grp, form = self._group("Signal Processing")
         cfg = FishTrackingConfig()
+
+        # ---- Notch filter ----
+        ngrp, nform = self._group("Notch Filter")
+        self.notch_enable = QCheckBox("Enable")
+        self.notch_enable.setChecked(cfg.notch_enabled)
+        self.notch_hz = _dspin(cfg.notch_hz, 40.0, 70.0, 10.0, 1)  # 50 Hz (Uruguay)
+        self.notch_Q  = _dspin(cfg.notch_Q,   5.0, 200.0,  5.0, 1)
+        nform.addRow("", self.notch_enable)
+        nform.addRow("Frequency (Hz):", self.notch_hz)
+        nform.addRow("Q factor:",       self.notch_Q)
+        layout.addWidget(ngrp)
 
         self.bp_low   = _dspin(cfg.bp_low,  50,  5000, 50, 1)
         self.bp_high  = _dspin(cfg.bp_high, 100, 10000, 100, 1)
@@ -147,6 +158,9 @@ class ParamsPanel(QScrollArea):
         cfg.hard_gate_f          = self.hard_gate_f.value()
         cfg.sig_gate             = self.sig_gate.value()
         cfg.max_miss             = self.max_miss.value()
+        cfg.notch_enabled        = self.notch_enable.isChecked()
+        cfg.notch_hz             = self.notch_hz.value()
+        cfg.notch_Q              = self.notch_Q.value()
         return cfg
 
     # ------------------------------------------------------------------

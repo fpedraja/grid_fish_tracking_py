@@ -12,7 +12,8 @@ import pandas as pd
 import soundfile as sf
 import scipy.io.wavfile as _wavfile
 
-from core.signal_proc import (bandpass_filter, compute_envelope,
+from core.signal_proc import (bandpass_filter, comb_notch_filter,
+                               compute_envelope,
                                detect_peaks_all_channels, merge_event_times,
                                amplitude_snapshots)
 from core.localization import (build_spatial_grid, precompute_spatial_weights,
@@ -83,6 +84,11 @@ class FishTrackingConfig:
     hard_gate_f:   float = 2.0    # Hz  ← most common reason same fish gets split
     sig_gate:      float = 0.35   # cosine distance (0=identical, 1=orthogonal)
     max_miss:      int   = 10     # files a track can coast without a detection
+
+    # --- Notch filter ---
+    notch_enabled: bool  = False
+    notch_hz:      float = 50.0   # powerline fundamental (Hz) — Uruguay: 50 Hz
+    notch_Q:       float = 30.0   # quality factor (higher = narrower notch)
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +210,8 @@ def process_folder(folder_path: str,
             continue
 
         # ---- Signal processing ----
+        if config.notch_enabled:
+            data = comb_notch_filter(data, fs, config.notch_hz, config.notch_Q)
         filtered = bandpass_filter(data, fs, config.bp_low,
                                    config.bp_high, config.bp_order)
         env = compute_envelope(filtered)

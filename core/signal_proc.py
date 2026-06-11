@@ -1,7 +1,24 @@
 """Signal processing: filtering, envelope extraction, peak detection, event merging."""
 
 import numpy as np
-from scipy.signal import butter, filtfilt, lfilter, hilbert, find_peaks
+from scipy.signal import butter, filtfilt, lfilter, hilbert, find_peaks, iircomb
+
+
+def comb_notch_filter(data: np.ndarray, fs: float,
+                      freq: float = 60.0, Q: float = 30.0) -> np.ndarray:
+    """Remove powerline fundamental and all harmonics with an IIR comb notch filter.
+
+    Args:
+        data: (N x C) raw audio samples
+        fs:   sample rate (Hz)
+        freq: powerline fundamental frequency (Hz) — typically 50 or 60
+        Q:    quality factor; higher = narrower notch per harmonic
+
+    Returns:
+        Filtered data (N x C).
+    """
+    b, a = iircomb(freq, Q, ftype='notch', fs=fs)
+    return lfilter(b, a, data, axis=0)
 
 
 def bandpass_filter(data: np.ndarray, fs: float,
