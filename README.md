@@ -8,13 +8,14 @@ Detects and tracks weakly electric fish (EOD signals) from multi-channel WAV rec
 
 - Optional 50/60 Hz comb notch filter to remove powerline interference before bandpass
 - Bandpass filter (300–2000 Hz) + Hilbert envelope peak detection
-- Gaussian spatial grid localization from 8 hydrophone channels
+- Two localization methods: Gaussian spatial grid (argmax) or weighted centroid (Henninger et al. 2020 JEB)
 - DBSCAN spatial clustering of EOD events per file
 - Kalman filter tracker with Hungarian assignment across files
 - PyQt5 GUI with:
-  - 2-D tank track map (fish trajectories)
-  - 1-second bandpass signal viewer with color-coded EOD markers and manual Y-scale lock
-  - PCA cluster identity scatter plot (amplitude fingerprints)
+  - 2-D tank track map (fish trajectories) with exact grid bounds
+  - EOD frequency vs file index plot, colour-coded per fish — below the track map
+  - 1-second bandpass signal viewer with colour-coded EOD markers and manual Y-scale lock
+  - PCA/UMAP cluster identity scatter plot (amplitude fingerprints)
   - Live log and results table
   - CSV export
 
@@ -64,9 +65,10 @@ python main.py
 2. Adjust parameters in the left panel if needed (see below).
 3. Click **▶ Start** to process all files.
 4. Switch to the **Tracks & Signals** tab to see:
-   - Fish track map (left)
-   - 1-second filtered signal with EOD markers (top right)
-   - PCA cluster identity scatter (bottom right)
+   - Fish track map — top left, bounded exactly to the tank grid
+   - EOD frequency vs file index — bottom left, same fish colours as the track map
+   - 1-second filtered signal with EOD markers — top right
+   - PCA/UMAP cluster identity scatter — bottom right
 5. Use the **File** slider to scrub back through any processed minute.
 6. Click **⬇ Export CSV** to save track data.
 
@@ -79,6 +81,8 @@ python main.py
 | `notch_enabled` | off | Enable 50/60 Hz comb notch filter (removes powerline harmonics) |
 | `notch_hz` | 50 Hz | Powerline fundamental frequency (50 Hz in Uruguay/Europe, 60 Hz in Americas) |
 | `notch_Q` | 30 | Notch quality factor — higher = narrower notch per harmonic |
+| `localization_method` | gaussian_grid | `gaussian_grid` or `weighted_centroid` (Henninger et al. 2020) |
+| `top_n_electrodes` | 4 | Electrodes used per event in weighted centroid mode |
 | `bp_low / bp_high` | 300 / 2000 Hz | Bandpass filter range |
 | `min_pk_height` | 0.015 | Envelope amplitude threshold for EOD detection |
 | `min_events_for_fish` | 600 | Minimum EOD events per file before clustering |
@@ -95,6 +99,13 @@ If you see 50/60 Hz powerline interference in the signal viewer, enable the **No
 The comb notch removes the fundamental frequency and all its harmonics in one pass before the bandpass filter is applied.
 Set `notch_hz` to match your local grid frequency (50 Hz in Uruguay/Europe, 60 Hz in most of the Americas).
 Increase `notch_Q` for a narrower notch if you are concerned about attenuating nearby EOD frequencies.
+
+### Localization method
+
+Two methods are available in the **Localization** section of the Parameters panel:
+
+- **Gaussian grid (argmax)** — precomputes a Gaussian spatial kernel over a dense 1 cm grid and picks the grid point with the highest weighted score. Resolution is limited to the grid step. Controlled by `sigma_spatial`.
+- **Weighted centroid (Henninger 2020)** — implements the method from [Henninger et al. (2020) JEB](https://journals.biologists.com/jeb/article/223/3/jeb206342/223694): `r̂ = Σ(√Aᵢ · rᵢ) / Σ(√Aᵢ)` using only the `top_n_electrodes` with the largest amplitude per event. Gives sub-electrode-spacing precision and is simpler to interpret. Recommended starting point: `top_n_electrodes = 4`.
 
 ### Tuning tips
 

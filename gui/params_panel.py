@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QFormLayout,
-    QDoubleSpinBox, QSpinBox, QScrollArea, QLabel, QCheckBox,
+    QDoubleSpinBox, QSpinBox, QScrollArea, QLabel, QCheckBox, QComboBox,
 )
 from PyQt5.QtCore import Qt
 
@@ -77,6 +77,16 @@ class ParamsPanel(QScrollArea):
         form.addRow("Merge window (ms):", self.merge_ms)
         layout.addWidget(grp)
 
+        # ---- Localization ----
+        lgrp, lform = self._group("Localization")
+        self.loc_method = QComboBox()
+        self.loc_method.addItem("Gaussian grid (argmax)", "gaussian_grid")
+        self.loc_method.addItem("Weighted centroid (Henninger 2020)", "weighted_centroid")
+        self.top_n_electrodes = _ispin(cfg.top_n_electrodes, 1, 8, 1)
+        lform.addRow("Method:", self.loc_method)
+        lform.addRow("Top N electrodes:", self.top_n_electrodes)
+        layout.addWidget(lgrp)
+
         # ---- Spatial ----
         grp, form = self._group("Spatial Grid")
         self.sigma_spatial = _dspin(cfg.sigma_spatial, 1.0, 100.0, 1.0, 1)
@@ -142,6 +152,8 @@ class ParamsPanel(QScrollArea):
         cfg.min_pk_height        = self.min_pk_height.value()
         cfg.mpd_ms               = self.mpd_ms.value()
         cfg.merge_ms             = self.merge_ms.value()
+        cfg.localization_method  = self.loc_method.currentData()
+        cfg.top_n_electrodes     = self.top_n_electrodes.value()
         cfg.sigma_spatial        = self.sigma_spatial.value()
         cfg.eps_phys             = self.eps_phys.value()
         cfg.min_pts              = self.min_pts.value()

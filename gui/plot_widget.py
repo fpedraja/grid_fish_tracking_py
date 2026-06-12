@@ -52,10 +52,12 @@ class TrackPlotWidget(QWidget):
         self._plot = self._glw.addPlot(title="Fish Tracks")
         self._plot.setLabel("bottom", "Y (cm)")
         self._plot.setLabel("left",   "X (cm)")
-        self._plot.setXRange(*ylim, padding=0.05)   # tank Y → horizontal
-        self._plot.setYRange(*xlim, padding=0.05)   # tank X → vertical
+        self._plot.setXRange(*ylim, padding=0)
+        self._plot.setYRange(*xlim, padding=0)
+        self._plot.setLimits(xMin=ylim[0], xMax=ylim[1],
+                              yMin=xlim[0], yMax=xlim[1])
         self._plot.invertY(True)                    # 0 at top-left
-        self._plot.setAspectLocked(True)
+        self._plot.disableAutoRange()
         self._plot.showGrid(x=True, y=True, alpha=0.2)
 
         self._sensor_scatter = pg.ScatterPlotItem(
@@ -163,4 +165,82 @@ class TrackPlotWidget(QWidget):
             self._plot.removeItem(entry["scatter"])
             for item in entry["err_items"]:
                 self._plot.removeItem(item)
+        self._tracks.clear()
+
+
+# ---------------------------------------------------------------------------
+# Frequency vs file-index plot
+# ---------------------------------------------------------------------------
+
+class FreqPlotWidget(QWidget):
+    """Fish EOD frequency vs file index, colour-coded by fish ID."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._history: dict[int, list] = defaultdict(list)  # file_idx → [(fish_id, freq)]
+        self._max_file_idx: int = 0
+        self._tracks: dict = {}   # fish_id → {line, scatter, xs, ys}
+
+        self._glw = pg.GraphicsLayoutWidget()
+        self._glw.setBackground("#0d0d2a")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._glw)
+
+        self._plot = self._glw.addPlot(title="Frequency vs File")
+        self._plot.setLabel("bottom", "File #")
+        self._plot.setLabel("left",   "Frequency (Hz)")
+        self._plot.showGrid(x=True, y=True, alpha=0.2)
+        self._plot.setMenuEnabled(False)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def record(self, file_idx: int, result) -> None:
+        for fish in result.fish:
+            self._history[file_idx].append((fish["id"], fish["freq"]))
+        self._max_file_idx = max(self._max_file_idx, file_idx)
+        for fish_id, freq in self._history[file_idx]:
+            self._paint(file_idx, fish_id, freq)
+
+    def show_up_to(self, file_idx: int) -> None:
+        self._clear_items()
+        for idx in sorted(self._history.keys()):
+            if idx > file_idx:
+                break
+            for fish_id, freq in self._history[idx]:
+                self._paint(idx, fish_id, freq)
+
+    def clear_all(self) -> None:
+        self._clear_items()
+        self._history.clear()
+        self._max_file_idx = 0
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _paint(self, file_idx: int, fish_id: int, freq: float) -> None:
+        col = _color(fish_id)
+        if fish_id not in self._tracks:
+            pen    = pg.mkPen(color=col, width=2)
+            brush  = pg.mkBrush(color=col)
+            line   = pg.PlotDataItem(pen=pen, name=f"Fish {fish_id}")
+            scatter = pg.ScatterPlotItem(symbol="o", size=7,
+                                          brush=brush, pen=pg.mkPen(None))
+            self._plot.addItem(line)
+            self._plot.addItem(scatter)
+            self._tracks[fish_id] = {"line": line, "scatter": scatter,
+                                      "xs": [], "ys": []}
+        entry = self._tracks[fish_id]
+        entry["xs"].append(file_idx + 1)   # 1-based for display
+        entry["ys"].append(freq)
+        entry["line"].setData(x=entry["xs"], y=entry["ys"])
+        entry["scatter"].setData(x=entry["xs"], y=entry["ys"])
+
+    def _clear_items(self) -> None:
+        for entry in self._tracks.values():
+            self._plot.removeItem(entry["line"])
+            self._plot.removeItem(entry["scatter"])
         self._tracks.clear()

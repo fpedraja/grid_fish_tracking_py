@@ -40,6 +40,39 @@ def precompute_spatial_weights(xy_meas: np.ndarray,
     return np.exp(-dists**2 / (2.0 * sigma_spatial**2))
 
 
+def localize_events_weighted_centroid(snaps: np.ndarray,
+                                      xy_meas: np.ndarray,
+                                      top_n: int = 4) -> tuple:
+    """Weighted centroid localization using sqrt-compressed amplitudes.
+
+    Implements the method from Henninger et al. (2020) JEB:
+        r̂ = Σ(√Aᵢ · rᵢ) / Σ(√Aᵢ)
+    using only the top_n electrodes with the largest amplitude per event.
+
+    Args:
+        snaps:   (E x C) amplitude snapshots
+        xy_meas: (C x 2) electrode positions in cm
+        top_n:   number of electrodes to use per event (≤ C)
+
+    Returns:
+        X, Y: (E,) estimated event positions in cm.
+    """
+    vals = np.sqrt(np.maximum(snaps, 0.0))          # sqrt compression
+
+    if top_n < xy_meas.shape[0]:
+        # keep only top_n amplitudes per event; zero the rest
+        thresh = np.sort(vals, axis=1)[:, -top_n:].min(axis=1, keepdims=True)
+        vals = np.where(vals >= thresh, vals, 0.0)
+
+    row_sums = vals.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = np.finfo(float).eps
+    weights = vals / row_sums                        # (E x C), sum-normalised
+
+    X = weights @ xy_meas[:, 0]
+    Y = weights @ xy_meas[:, 1]
+    return X, Y
+
+
 def localize_events(snaps: np.ndarray,
                     W_proto: np.ndarray,
                     xy_grid: np.ndarray) -> tuple:

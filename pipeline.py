@@ -17,7 +17,7 @@ from core.signal_proc import (bandpass_filter, comb_notch_filter,
                                detect_peaks_all_channels, merge_event_times,
                                amplitude_snapshots)
 from core.localization import (build_spatial_grid, precompute_spatial_weights,
-                                localize_events)
+                                localize_events, localize_events_weighted_centroid)
 from core.clustering import (cluster_events_dbscan, compute_cluster_stats,
                               compute_amp_fingerprints, filter_valid_clusters)
 from core.kalman_tracker import KalmanFishTracker
@@ -48,6 +48,10 @@ class FishTrackingConfig:
     ylim:          tuple = (0, 120)
     grid_step:     float = 1.0       # cm resolution
     sigma_spatial: float = 30.0      # Gaussian kernel width (cm)
+
+    # --- Localization ---
+    localization_method: str = "gaussian_grid"   # "gaussian_grid" | "weighted_centroid"
+    top_n_electrodes:    int = 4                 # electrodes used per event (weighted centroid only)
 
     # --- Bandpass filter ---
     bp_low:  float = 300.0   # Hz
@@ -242,7 +246,11 @@ def process_folder(folder_path: str,
             _cb(signal_cb, float(fs), filtered[i0:i1, :],
                 (event_times[win_mask] - i0) / fs, None, fname)
 
-        X, Y     = localize_events(snaps, W_proto, xy_grid)
+        if config.localization_method == "weighted_centroid":
+            X, Y = localize_events_weighted_centroid(
+                snaps, config.xy_meas, config.top_n_electrodes)
+        else:
+            X, Y = localize_events(snaps, W_proto, xy_grid)
 
         # ---- DBSCAN clustering ----
         labels = cluster_events_dbscan(X, Y, config.eps_phys, config.min_pts)

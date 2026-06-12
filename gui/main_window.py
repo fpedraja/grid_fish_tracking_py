@@ -16,7 +16,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QColor
 
 from gui.params_panel import ParamsPanel
-from gui.plot_widget import TrackPlotWidget
+from gui.plot_widget import TrackPlotWidget, FreqPlotWidget
 from gui.results_table import ResultsTable
 from gui.signal_viewer import SignalViewer
 from gui.umap_widget import ClusterScatterWidget
@@ -157,14 +157,19 @@ class MainWindow(QMainWindow):
 
         viz_splitter = QSplitter(Qt.Horizontal)
 
-        # --- left pane: track plot + file slider ---
+        # --- left pane: track plot + freq plot + file slider ---
         left_pane = QWidget()
         left_layout = QVBoxLayout(left_pane)
         left_layout.setContentsMargins(0, 0, 0, 4)
         left_layout.setSpacing(3)
 
+        left_vsplit = QSplitter(Qt.Vertical)
         self._plot = TrackPlotWidget(xlim=(0, 80), ylim=(0, 120))
-        left_layout.addWidget(self._plot, stretch=1)
+        self._freq_plot = FreqPlotWidget()
+        left_vsplit.addWidget(self._plot)
+        left_vsplit.addWidget(self._freq_plot)
+        left_vsplit.setSizes([320, 180])
+        left_layout.addWidget(left_vsplit, stretch=1)
 
         # File / minute slider
         fslider_row = QHBoxLayout()
@@ -289,6 +294,7 @@ class MainWindow(QMainWindow):
         self._results_table.add_result(result)
         file_idx = self._file_idx_map.get(result.filename, len(self._results) - 1)
         self._plot.record(file_idx, result)
+        self._freq_plot.record(file_idx, result)
         # Update file slider range and move to latest
         self._file_slider.setMaximum(self._plot.max_file_idx)
         self._file_slider.setEnabled(True)
@@ -306,6 +312,7 @@ class MainWindow(QMainWindow):
     def _on_file_slider(self, val: int) -> None:
         """Scrub the track plot and signal viewer to file index val."""
         self._plot.show_up_to(val)
+        self._freq_plot.show_up_to(val)
         # Update label
         if val < len(self._file_list):
             fname = self._file_list[val]
@@ -374,6 +381,7 @@ class MainWindow(QMainWindow):
         self._df = None
         self._results_table.clear_results()
         self._plot.clear_all()
+        self._freq_plot.clear_all()
         self._log.clear()
         self._progress.setValue(0)
         self._btn_export.setEnabled(False)
